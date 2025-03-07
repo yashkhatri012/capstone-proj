@@ -3,6 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+models/
+
+
+local_s3
 # C extensions
 *.so
 cred.txt
