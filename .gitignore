@@ -5,7 +5,7 @@ __pycache__/
 
 models/
 data/
-reports/experiment_info.json
+reports/
 local_s3
 # C extensions
 *.so
