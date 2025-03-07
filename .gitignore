@@ -4,7 +4,7 @@ __pycache__/
 *$py.class
 
 models/
-
+data/
 
 local_s3
 # C extensions
