@@ -3,14 +3,17 @@ import mlflow
 import pickle
 import os
 import pandas as pd
-from prometheus_client import Counter, Histogram, generate_latest, CollectorRegistry, CONTENT_TYPE_LATEST
+
 import time
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
 import string
 import re
 import dagshub
+from dotenv import load_dotenv
 
+# Load environment variables
+load_dotenv()
 import warnings
 warnings.simplefilter("ignore", UserWarning)
 warnings.filterwarnings("ignore")
@@ -69,13 +72,15 @@ def normalize_text(text):
 
 # Below code block is for local use
 # -------------------------------------------------------------------------------------
-mlflow.set_tracking_uri('https://dagshub.com/yashkhatri012/capstone-proj.mlflow')
-dagshub.init(repo_owner='yashkhatri012', repo_name='capstone-proj', mlflow=True)
+# mlflow.set_tracking_uri('https://dagshub.com/yashkhatri012/capstone-proj.mlflow')
+# dagshub.init(repo_owner='yashkhatri012', repo_name='capstone-proj', mlflow=True)
 # -------------------------------------------------------------------------------------
 
 # Below code block is for production use
 # -------------------------------------------------------------------------------------
 # Set up DagsHub credentials for MLflow tracking
+
+
 dagshub_token = os.getenv("CAPSTONE_TEST")
 if not dagshub_token:
     raise EnvironmentError("CAPSTONE_TEST environment variable is not set")
@@ -94,21 +99,6 @@ mlflow.set_tracking_uri(f'{dagshub_url}/{repo_owner}/{repo_name}.mlflow')
 # Initialize Flask app
 app = Flask(__name__)
 
-# from prometheus_client import CollectorRegistry
-
-# Create a custom registry
-registry = CollectorRegistry()
-
-# Define your custom metrics using this registry
-REQUEST_COUNT = Counter(
-    "app_request_count", "Total number of requests to the app", ["method", "endpoint"], registry=registry
-)
-REQUEST_LATENCY = Histogram(
-    "app_request_latency_seconds", "Latency of requests in seconds", ["endpoint"], registry=registry
-)
-PREDICTION_COUNT = Counter(
-    "model_prediction_count", "Count of predictions for each class", ["prediction"], registry=registry
-)
 
 # ------------------------------------------------------------------------------------------
 # Model and vectorizer setup
@@ -129,15 +119,14 @@ vectorizer = pickle.load(open('models/vectorizer.pkl', 'rb'))
 # Routes
 @app.route("/")
 def home():
-    REQUEST_COUNT.labels(method="GET", endpoint="/").inc()
     start_time = time.time()
     response = render_template("index.html", result=None)
-    REQUEST_LATENCY.labels(endpoint="/").observe(time.time() - start_time)
+    
     return response
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    REQUEST_COUNT.labels(method="POST", endpoint="/predict").inc()
+    
     start_time = time.time()
 
     text = request.form["text"]
@@ -151,18 +140,10 @@ def predict():
     result = model.predict(features_df)
     prediction = result[0]
 
-    # Increment prediction count metric
-    PREDICTION_COUNT.labels(prediction=str(prediction)).inc()
-
-    # Measure latency
-    REQUEST_LATENCY.labels(endpoint="/predict").observe(time.time() - start_time)
+    
 
     return render_template("index.html", result=prediction)
 
-@app.route("/metrics", methods=["GET"])
-def metrics():
-    """Expose only custom Prometheus metrics."""
-    return generate_latest(registry), 200, {"Content-Type": CONTENT_TYPE_LATEST}
 
 if __name__ == "__main__":
     # app.run(debug=True) # for local use
