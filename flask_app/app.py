@@ -3,8 +3,6 @@ import mlflow
 import pickle
 import os
 import pandas as pd
-from prometheus_client import Counter, Histogram, generate_latest, CollectorRegistry, CONTENT_TYPE_LATEST
-import time
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
 import string
@@ -94,23 +92,6 @@ mlflow.set_tracking_uri(f'{dagshub_url}/{repo_owner}/{repo_name}.mlflow')
 # Initialize Flask app
 app = Flask(__name__)
 
-# from prometheus_client import CollectorRegistry
-
-# Create a custom registry
-registry = CollectorRegistry()
-
-# Define your custom metrics using this registry
-REQUEST_COUNT = Counter(
-    "app_request_count", "Total number of requests to the app", ["method", "endpoint"], registry=registry
-)
-REQUEST_LATENCY = Histogram(
-    "app_request_latency_seconds", "Latency of requests in seconds", ["endpoint"], registry=registry
-)
-PREDICTION_COUNT = Counter(
-    "model_prediction_count", "Count of predictions for each class", ["prediction"], registry=registry
-)
-
-# ------------------------------------------------------------------------------------------
 # Model and vectorizer setup
 model_name = "my_model"
 def get_latest_model_version(model_name):
@@ -129,16 +110,15 @@ vectorizer = pickle.load(open('models/vectorizer.pkl', 'rb'))
 # Routes
 @app.route("/")
 def home():
-    REQUEST_COUNT.labels(method="GET", endpoint="/").inc()
+    
     start_time = time.time()
     response = render_template("index.html", result=None)
-    REQUEST_LATENCY.labels(endpoint="/").observe(time.time() - start_time)
+    
     return response
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    REQUEST_COUNT.labels(method="POST", endpoint="/predict").inc()
-    start_time = time.time()
+    
 
     text = request.form["text"]
     # Clean text
@@ -151,19 +131,9 @@ def predict():
     result = model.predict(features_df)
     prediction = result[0]
 
-    # Increment prediction count metric
-    PREDICTION_COUNT.labels(prediction=str(prediction)).inc()
-
-    # Measure latency
-    REQUEST_LATENCY.labels(endpoint="/predict").observe(time.time() - start_time)
-
     return render_template("index.html", result=prediction)
 
-@app.route("/metrics", methods=["GET"])
-def metrics():
-    """Expose only custom Prometheus metrics."""
-    return generate_latest(registry), 200, {"Content-Type": CONTENT_TYPE_LATEST}
 
 if __name__ == "__main__":
-    # app.run(debug=True) # for local use
-    app.run(debug=True, host="0.0.0.0", port=5000)  # Accessible from outside Docker
+    
+    app.run(debug=True, host="0.0.0.0", port=5000)  
