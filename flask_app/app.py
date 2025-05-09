@@ -111,7 +111,7 @@ vectorizer = pickle.load(open('models/vectorizer.pkl', 'rb'))
 @app.route("/")
 def home():
     
-    start_time = time.time()
+    
     response = render_template("index.html", result=None)
     
     return response
